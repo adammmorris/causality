@@ -14,10 +14,15 @@ dodge <- position_dodge(width=0.9)
 
 setwd('/Users/adam/Me/Psychology/Projects/causality/git/data')
 path = ''
-data = read.csv(paste0(path, 'data.csv')) %>% arrange(subject) %>%
-  mutate(focal_fac = factor(ifelse(focal_high == 10, 'high', ifelse(focal_high > 5, 'high', 'low')), c('low', 'high', 'one')),
-         alt_fac = factor(ifelse(alt_high == 10, 'high', ifelse(alt_high > 5, 'high', 'low')), c('low', 'high', 'one')),
-         rt_fac = factor(rt > median(rt), c(T,F), c('Slow', 'Fast')))
+data = read.csv(paste0(path, 'data.csv')) %>% arrange(subject)
+
+# how many subjects are there?
+numsubj = length(unique(data$subject))
+numobs = nrow(data)
+
+# Make 3D graph -----------------------------------------------------------
+
+
 df.graph = data %>% group_by(focal_high, alt_high) %>% summarise(rating.mean = (mean(rating) + 1) / 9, rating.se = se(rating))
 
 #trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
@@ -26,44 +31,101 @@ wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = TRUE,
           xlab = list("Prob. of blue \n(alternative)", cex = 1.3), ylab = list("Prob. of green\n(focal)", cex = 1.3),
           zlab = list("How causal\nwas green?", cex = 1.3))
 
-model = lmer(rating ~ focal_high + alt_high + (1 + focal_high + alt_high | subject), data = data)
-summary(model)
+wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = TRUE, drape = TRUE,  screen=list(z=130, x=-60, y=0),
+          col.regions = colorRampPalette(c("red", "yellow"))(100), light.source = c(10,0,10)) 
 
-df.graph2 = data %>% filter(rt_fac == 'Slow') %>% group_by(focal_fac, alt_fac) %>% summarise(rating.mean = mean(rating), rating.se = se(rating))
+# Test for linear effects -------------------------------------------------
 
-ggplot(data = df.graph2, aes(x = focal_fac, y = rating.mean, colour = alt_fac, group = alt_fac)) +
-  geom_line() +
-  geom_errorbar(aes(ymax = rating.mean + rating.se, ymin = rating.mean - rating.se), width = .2) 
 
-f = function(x,a) {a*(1-x)/(1-x*a)}
-f_exp = function(x,a) {ifelse(px == 10 & pa == 10, 1/2, exp(f(px/10,pa/10)) / sum(exp(f(px/10,pa/10)) + exp(f(pa/10,px/10))))}
-thomas = function(x,a) {1-x*(1-a)}
-hh = function(x,a) {ifelse(x > .5, 0, ifelse(x < a, 1, 1/2))}
-sp = function(x,a) {a*(1-x)}
-dp = function(x,a) {a}
+linear.model = lmer(rating ~ focal_high + alt_high + (1 + focal_high + alt_high | subject), data = data)
+summary(linear.model)
 
-df.test = data.frame(rating = NULL, alt_high = NULL, focal_high = NULL)
 
-actual = c()
-predicted_us = c()
-predicted_t = c()
-predicted_sp = c()
-predicted_dp = c()
+# Compute correlations ----------------------------------------------------
+
+# all the models
+# "x" stands for Prob(green = 1); "a" stands for Prob(blue = 1)
+
+our_model = function(x,a) {ifelse(a == 1 & x == 1, 1/2, a*(1-x)/(1-x*a))}
+our_model_normed = function(x,a) {ifelse(a == 1 & x == 1, 1/2, exp(our_model(px/10,pa/10)) / sum(exp(our_model(px/10,pa/10)) + exp(our_model(pa/10,px/10))))}
+icard = function(x,a) {1-x*(1-a)} # model from Icard et al.
+hh = function(x,a) {ifelse(x > .5, 0, ifelse(x < a, 1, 1/2))} # model from Halpern & Hitchcock
+sp = function(x,a) {a*(1-x)} # model from Spellman
+dp = function(x,a) {a} # delta-P model (and Power-PC model)
+
+df.cors = data.frame(actual = numeric(), ours = numeric(), ours_normed = numeric(), sp = numeric(), dp = numeric(), hh = numeric(), icard = numeric())
+df.modeling = matrix(0,10,10)
 for (px in 1:10) {
   for (pa in 1:10) {
-        actual = c(actual, df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa])
-        predicted_us = c(predicted_us, f(px/10,pa/10))
-        predicted_t = c(predicted_t, thomas(px/10,pa/10))
-        predicted_sp = c(predicted_sp, sp(px/10,pa/10))
-        predicted_dp = c(predicted_dp, dp(px/10,pa/10))
-        #df.test = rbind(df.test, data.frame(rating = f_exp(px/10,pa/10), alt_high = pa, focal_high = px))
+        x = px/10
+        a = pa/10
+        actual = df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa]
+        df.cors = rbind(df.cors, data.frame(actual = actual, 
+                                            ours = our_model(x,a), ours_normed = our_model_normed(x,a), sp = sp(x,a), dp = dp(x,a), hh = hh(x,a), icard = icard(x,a)))
+        df.modeling[px, pa] = actual
   }
 }
 
-cor.test(actual, predicted_us)
-cor.test(predicted_us, predicted_t)
-r.test(n=99, r12=.8671829, r23 = .7379976, r13 = .7884932)
+# check correlations b/w models and ratings
+cor.test(df.cors$actual, df.cors$ours) # .86
+cor.test(df.cors$actual, df.cors$ours_normed) # .87
+cor.test(df.cors$actual, df.cors$sp) # .72
+cor.test(df.cors$actual, df.cors$dp) # .62
+cor.test(df.cors$actual, df.cors$hh) # .45
+cor.test(df.cors$actual, df.cors$icard) # .74
 
-wireframe(rating ~ alt_high * focal_high, data = df.test, colorkey = TRUE, drape = TRUE,  screen=list(z=130, x=-60, y=0),
-          col.regions = colorRampPalette(c("red", "yellow"))(100), light.source = c(10,0,10)) 
+# is our model significantly more correlated than the next-best?
+# yes: t(98) = 3.91, p < .0002
+r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours, use = "complete.obs"), 
+       r13 = cor(df.cors$actual, df.cors$icard, use = "complete.obs"), 
+       r23 = cor(df.cors$ours, df.cors$icard, use = "complete.obs"))
 
+# scatterplots
+theme_update(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+             panel.background = element_rect(colour = "black"),
+             axis.text=element_text(size=20, colour = "black"), axis.title=element_text(size=24, face = "bold"),
+             axis.title.x = element_text(vjust = 0),
+             legend.title = element_text(size = 24, face = "bold"), legend.text = element_text(size = 20),
+             plot.title = element_text(size = 26, face = "bold", vjust = 1))
+
+ggplot(df.cors, aes(x = ours, y = actual)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(breaks = c(0, 1)) + 
+  scale_y_continuous(breaks = c(.3, .8)) + 
+  labs(x = "Our model's predictions", y = "Actual ratings")
+
+ggplot(df.cors, aes(x = sp, y = actual)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(breaks = c(0, 1)) + 
+  scale_y_continuous(breaks = c(.3, .8)) + 
+  labs(x = "SP's predictions", y = "Actual ratings")
+
+ggplot(df.cors, aes(x = dp, y = actual)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(breaks = c(0, 1)) + 
+  scale_y_continuous(breaks = c(.3, .8)) + 
+  labs(x = "Delta-P and Power-PC's predictions", y = "Actual ratings")
+
+ggplot(df.cors, aes(x = hh, y = actual)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(breaks = c(0, 1)) + 
+  scale_y_continuous(breaks = c(.3, .8)) + 
+  labs(x = "Halpern & Hitchcock's predictions", y = "Actual ratings")
+
+ggplot(df.cors, aes(x = icard, y = actual)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(breaks = c(0, 1)) + 
+  scale_y_continuous(breaks = c(.3, .8)) + 
+  labs(x = "Icard et al.'s predictions", y = "Actual ratings")
+
+
+# Save for model fitting --------------------------------------------------
+write.table(data %>% mutate(rating = (rating + 1) / 10) %>%
+              select(rating, focal_high, alt_high, subject) %>% 
+              mutate(subject = as.numeric(subject)) %>%
+              arrange(subject), 'ratings.csv', row.names = F, sep = ",", col.names = F)
