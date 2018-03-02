@@ -22,9 +22,9 @@ rating = ratings(:, 1);
 ours = @(x,a) a.*(1-x) ./ (1-x.*a);
 sp = @(x,a) a.*(1-x);
 dp = @(x,a) a;
-hh = @(x,a) (x > .5) * 0 + (x < a) * alpha + (x > a & x < .5) * beta;
+hh = @(x,a) (x > .5) * 0 + (x < a) * alpha + (x >= a & x <= .5) * beta;
 icard = @(x,a) 1 - x.*(1-a);
-normed = @(x,a,f,scale) exp(scale * f(x,a)) ./ (exp(scale * f(x,a)) + exp(scale * f(a,x)));
+normed = @(x,a,f) exp(f(x,a)) ./ (exp(f(x,a)) + exp(f(a,x)));
 
 if ~norm
     if strcmp(model, 'ours')
@@ -40,15 +40,15 @@ if ~norm
     end
 else
     if strcmp(model, 'ours')
-        prediction = normed(x,a,ours,1);
+        prediction = normed(x,a,ours);
     elseif strcmp(model, 'sp')
-        prediction = normed(x,a,sp,1);
+        prediction = normed(x,a,sp);
     elseif strcmp(model, 'dp')
-        prediction = normed(x,a,dp,1);
+        prediction = normed(x,a,dp);
     elseif strcmp(model, 'icard')
-        prediction = normed(x,a,icard,1);
+        prediction = normed(x,a,icard);
     elseif strcmp(model, 'hh')
-        prediction = normed(x,a,hh,1);
+        prediction = normed(x,a,hh);
     end    
 end
 

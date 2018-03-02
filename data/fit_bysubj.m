@@ -33,7 +33,7 @@ parfor modelind = 1:length(models)
         options = optimoptions(@fmincon, 'Display', 'off', 'UseParallel', false);
         options_unc = optimoptions(@fminunc, 'Display', 'Off', 'Algorithm', 'quasi-newton', 'MaxFunEvals', 0);
         
-        f = @(params) -likelihood_bysubj(params, ratings, model);
+        f = @(params) -likelihood_bysubj(params, ratings, model, norm);
         logposts_starts = zeros(numStarts, 1);
         params_starts = zeros(numStarts, numParams);
         
@@ -58,6 +58,6 @@ parfor modelind = 1:length(models)
 end
 
 % %% Run BMS
-[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
-modelprobs
-pxp
+%[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
+%modelprobs
+%pxp
