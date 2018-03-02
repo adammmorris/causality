@@ -1,17 +1,18 @@
 %% Set up
 
 data = csvread('ratings.csv');
-models = {'ours', 'sp', 'dp', 'icard', 'hh', 'ours_normed'};
+models = {'ours', 'sp', 'dp', 'icard', 'hh'};
+norm = 1;
 
 %priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
 
 bounds_full = [0 0 0 0; 10 2 1 1];
-numStarts = 1;
+numStarts = 10;
 numSubjects = length(unique(data(:,4)));
 
 %% Fit
 lme_bms = zeros(numSubjects, length(models));
-for modelind = 1:length(models)
+parfor modelind = 1:length(models)
     model = models(modelind);
     
     params = 1:2;
@@ -57,6 +58,6 @@ for modelind = 1:length(models)
 end
 
 % %% Run BMS
-% [~, modelprobs, ~, pxp, ~] = bms(lme_bms);
-% modelprobs
-% pxp
+[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
+modelprobs
+pxp

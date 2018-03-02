@@ -1,5 +1,5 @@
 % model should be: ours, sp, dp, icard, hh
-function [ll] = likelihood(params, data, model)
+function [ll] = likelihood(params, data, model, norm)
 
 if strcmp(model, 'hh')
     sderror = params(1);
@@ -11,31 +11,45 @@ else
     base = 0;
     scale = params(1);
     sderror = params(2);
+    alpha = 0;
+    beta = 0;
 end
 
 x = data(:, 2) / 10;
 a = data(:, 3) / 10;
 rating = data(:, 1);
 
-if strcmp(model, 'ours')
-    prediction = a .* (1-x) ./ (1 - x.*a);
-elseif strcmp(model, 'sp')
-    prediction = a .* (1-x);
-elseif strcmp(model, 'dp')
-    prediction = a;
-elseif strcmp(model, 'icard')
-    prediction = 1-x.*(1-a);
-elseif strcmp(model, 'hh')
-    if x > .5
-        prediction = 0;
-    elseif x < a
-        prediction = alpha;
-    else
-        prediction = beta;
+ours = @(x,a) a.*(1-x) ./ (1-x.*a);
+sp = @(x,a) a.*(1-x);
+dp = @(x,a) a;
+hh = @(x,a) (x > .5) * 0 + (x < a) * alpha + (x > a & x < .5) * beta;
+icard = @(x,a) 1 - x.*(1-a);
+normed = @(x,a,f,scale) exp(scale * f(x,a)) ./ (exp(scale * f(x,a)) + exp(scale * f(a,x)));
+
+if ~norm
+    if strcmp(model, 'ours')
+        prediction = ours(x,a);
+    elseif strcmp(model, 'sp')
+        prediction = sp(x,a);
+    elseif strcmp(model, 'dp')
+        prediction = dp(x,a);
+    elseif strcmp(model, 'icard')
+        prediction = icard(x,a);
+    elseif strcmp(model, 'hh')
+        prediction = hh(x,a);
     end
-elseif strcmp(model, 'ours_normed')
-    prediction = exp(a .* (1-x) ./ (1 - x.*a)) ./ ...
-        (exp(a .* (1-x) ./ (1 - x.*a)) + exp(x .* (1-a) ./ (1 - x.*a)));
+else
+    if strcmp(model, 'ours')
+        prediction = normed(x,a,ours,1);
+    elseif strcmp(model, 'sp')
+        prediction = normed(x,a,sp,1);
+    elseif strcmp(model, 'dp')
+        prediction = normed(x,a,dp,1);
+    elseif strcmp(model, 'icard')
+        prediction = normed(x,a,icard,1);
+    elseif strcmp(model, 'hh')
+        prediction = normed(x,a,hh,1);
+    end    
 end
 
 prediction(isnan(prediction)) = 1/2;

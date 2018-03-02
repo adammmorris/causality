@@ -1,7 +1,8 @@
 %% Set up
 
 data = csvread('ratings.csv');
-models = {'ours', 'sp', 'dp', 'icard', 'hh', 'ours_normed'};
+models = {'ours', 'sp', 'dp', 'icard', 'hh'};
+norm = 1;
 
 %priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
 
@@ -29,7 +30,7 @@ for modelind = 1:length(models)
     options = optimoptions(@fmincon, 'Display', 'off', 'UseParallel', false);
     options_unc = optimoptions(@fminunc, 'Display', 'Off', 'Algorithm', 'quasi-newton', 'MaxFunEvals', 0);
     
-    f = @(params) -likelihood(params, data, model);
+    f = @(params) -likelihood(params, data, model, norm);
     logposts_starts = zeros(numStarts, 1);
     params_starts = zeros(numStarts, numParams);
     
@@ -43,13 +44,13 @@ for modelind = 1:length(models)
     post = -logposts_starts(bestStart);
     optParams = params_starts(bestStart, :);
     
-    %[~, ~, ~, ~, ~, hessian] = fminunc(f, optParams, options_unc);
-    %lme(xind, aind, modelind) = numParams / 2 * log(2*pi) + post - .5 * log(det(hessian));
+    [~, ~, ~, ~, ~, hessian] = fminunc(f, optParams, options_unc);
+    lme_bms(modelind) = numParams / 2 * log(2*pi) + post - .5 * log(det(hessian));
     
     %if isnan(lme(xind,aind,modelind)) || isinf(lme(xind,aind,modelind)) || ~isreal(lme(xind,aind,modelind))
     %[~, ll] = posterior_bysubj(optParams, ratings, model);
-    lme_bms(modelind) = -0.5 * (numParams * (log(size(data,1)) - log(2*pi)) - 2 * post);
+    %lme_bms(modelind) = -0.5 * (numParams * (log(size(data,1)) - log(2*pi)) - 2 * post);
     %end
 end
 
-lme_bms
+fits_normed = lme_bms;

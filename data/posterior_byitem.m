@@ -1,10 +1,10 @@
-function [ll, ll_full] = posterior_byitem(params, data, model, priors)
+function [ll, ll_full] = posterior_byitem(params, data, model, priors, norm)
 
 ll_full = zeros(10, 10);
 for xind = 1:10
     for aind = 1:10
-        ratings = data(data(:, 2) == xind & data(:, 3) == aind, 1);
-        ll_full(xind, aind) = likelihood_byitem(params, ratings, model, xind, aind);
+        ratings = mean(data(data(:, 2) == xind & data(:, 3) == aind, 1));
+        ll_full(xind, aind) = likelihood_byitem(params, ratings, model, xind, aind, norm);
     end
 end
 
