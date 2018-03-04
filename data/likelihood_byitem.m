@@ -8,9 +8,9 @@ if strcmp(model, 'hh')
     base = 0;
     scale = 1;
 else
-    base = 0;
-    scale = params(1);
-    sderror = params(2);
+    base = params(1);
+    scale = params(2);
+    sderror = params(3);
     alpha = 0;
     beta = 0;
 end
@@ -20,7 +20,7 @@ x = xind / 10; a = aind / 10;
 ours = @(x,a) a.*(1-x) ./ (1-x.*a);
 sp = @(x,a) a.*(1-x);
 dp = @(x,a) a;
-hh = @(x,a) (x > .5) * 0 + (x < a) * alpha + (x > a & x < .5) * beta;
+hh = @(x,a) (x > .5) * 0 + (x < a & a <= .5) * alpha + (x > a & x <= .5) * beta;
 icard = @(x,a) 1 - x.*(1-a);
 normed = @(x,a,f,scale) exp(scale * f(x,a)) ./ (exp(scale * f(x,a)) + exp(scale * f(a,x)));
 

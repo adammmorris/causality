@@ -8,9 +8,9 @@ if strcmp(model, 'hh')
     base = 0;
     scale = 1;
 else
-    base = 0;
-    scale = params(1);
-    sderror = params(2);
+    base = params(1);
+    scale = params(2);
+    sderror = params(3);
     alpha = 0;
     beta = 0;
 end

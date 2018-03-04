@@ -14,7 +14,7 @@ dodge <- position_dodge(width=0.9)
 
 setwd('/Users/adam/Me/Psychology/Projects/causality/git/data')
 path = ''
-data = read.csv(paste0(path, 'data.csv')) %>% arrange(subject)
+data = read.csv(paste0(path, 'data.csv')) %>% arrange(subject) %>% filter(rating > -1) %>% mutate(rating = rating / 8)
 
 # how many subjects are there?
 numsubj = length(unique(data$subject))
@@ -23,22 +23,28 @@ numobs = nrow(data)
 # Make 3D graph -----------------------------------------------------------
 
 
-df.graph = data %>% group_by(focal_high, alt_high) %>% summarise(rating.mean = (mean(rating) + 1) / 9, rating.se = se(rating))
+df.graph = data %>% group_by(focal_high, alt_high) %>% summarise(rating.mean = mean(rating), rating.se = se(rating))
+mat.graph = matrix(0, nrow = 10, ncol = 10)
+for (i in 1:10) {
+  for (j in 1:10) {
+    mat.graph[i,j] = df.graph$rating.mean[df.graph$focal_high == i & df.graph$alt_high == j]
+  }
+}
 
-#trellis.par.set("axis.line",list(col=NA,lty=1,lwd=1))
-wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = TRUE, drape = TRUE,  screen=list(z=-60, x=-60, y=0),
-          #col.regions = colorRampPalette(c("#ff0000", "#ffff00"))(100),
-          xlab = list("Prob. of blue \n(alternative)", cex = 1.3), ylab = list("Prob. of green\n(focal)", cex = 1.3),
-          zlab = list("How causal\nwas green?", cex = 1.3))
+wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = T, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
-wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = TRUE, drape = TRUE,  screen=list(z=130, x=-60, y=0),
-          col.regions = colorRampPalette(c("red", "yellow"))(100), light.source = c(10,0,10)) 
 
 # Test for linear effects -------------------------------------------------
 
 
 linear.model = lmer(rating ~ focal_high + alt_high + (1 + focal_high + alt_high | subject), data = data)
 summary(linear.model)
+
+
+linear.model2 = lm(rating ~ focal_high, data = data %>% filter(alt_high == 1))
+summary(linear.model2)
 
 
 # Compute correlations ----------------------------------------------------
@@ -53,7 +59,7 @@ hh = function(x,a) {ifelse(x > .5, 0, ifelse(x < a, 1, 1/2))} # model from Halpe
 sp = function(x,a) {a*(1-x)} # model from Spellman
 dp = function(x,a) {a} # delta-P model (and Power-PC model)
 
-df.cors = data.frame(actual = numeric(), ours = numeric(), sp = numeric(), dp = numeric(), hh = numeric(), icard = numeric(),
+df.cors = data.frame(x = numeric(), a = numeric(), actual = numeric(), ours = numeric(), sp = numeric(), dp = numeric(), hh = numeric(), icard = numeric(),
                      ours_normed = numeric(), sp_normed = numeric(), dp_normed = numeric(), hh_normed = numeric(), icard_normed = numeric())
 df.modeling = matrix(0,10,10)
 for (px in 1:10) {
@@ -61,7 +67,7 @@ for (px in 1:10) {
         x = px/10
         a = pa/10
         actual = df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa]
-        df.cors = rbind(df.cors, data.frame(actual = actual, 
+        df.cors = rbind(df.cors, data.frame(x = px, a = pa, actual = actual, 
                                             ours = our_model(x,a), sp = sp(x,a), dp = dp(x,a), hh = hh(x,a), icard = icard(x,a),
                                             ours_normed = normed(x,a,our_model), sp_normed = normed(x,a,sp), dp_normed = normed(x,a,dp),
                                             hh_normed = normed(x,a,hh), icard_normed = normed(x,a,icard)))
@@ -82,10 +88,18 @@ cor.test(df.cors$actual, df.cors$icard) # .74
 cor.test(df.cors$actual, df.cors$icard_normed) # .8
 
 # is our model significantly more correlated than the next-best?
-# yes: t(98) = 3.91, p < .0002
+# yes: t(99) = 3.91, p < .0002
+r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours, use = "complete.obs"), 
+       r13 = cor(df.cors$actual, df.cors$sp_normed, use = "complete.obs"), 
+       r23 = cor(df.cors$ours, df.cors$sp_normed, use = "complete.obs"))
+
 r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours_normed, use = "complete.obs"), 
-       r13 = cor(df.cors$actual, df.cors$icard_normed, use = "complete.obs"), 
-       r23 = cor(df.cors$ours, df.cors$icard_normed, use = "complete.obs"))
+       r13 = cor(df.cors$actual, df.cors$sp_normed, use = "complete.obs"), 
+       r23 = cor(df.cors$ours_normed, df.cors$sp_normed, use = "complete.obs"))
+
+r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours, use = "complete.obs"), 
+       r13 = cor(df.cors$actual, df.cors$ours_normed, use = "complete.obs"), 
+       r23 = cor(df.cors$ours, df.cors$ours_normed, use = "complete.obs"))
 
 # scatterplots
 theme_update(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
@@ -96,78 +110,120 @@ theme_update(panel.grid.major = element_blank(), panel.grid.minor = element_blan
              plot.title = element_text(size = 26, face = "bold", vjust = 1))
 
 ggplot(df.cors, aes(x = ours, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Our model's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+                               panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                               panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
+wireframe(ours ~ a * x, data = df.cors, colorkey = T, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 ggplot(df.cors, aes(x = sp, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "SP's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
+wireframe(sp ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 ggplot(df.cors, aes(x = dp, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Delta-P and Power-PC's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
+wireframe(dp ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 ggplot(df.cors, aes(x = hh, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Halpern & Hitchcock's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
+wireframe(hh ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 ggplot(df.cors, aes(x = icard, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Icard et al.'s predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
+wireframe(icard ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 # normed
+wireframe(ours_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+
 ggplot(df.cors, aes(x = ours_normed, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Our model's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+
 
 ggplot(df.cors, aes(x = sp_normed, y = actual)) +
-  geom_point() +
+  geom_point(size = 3) +
   geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "SP's predictions", y = "Actual ratings")
+  xlim(0,1) + 
+  ylim(0,1) +
+  labs(x = "", y = "") +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(color = 'black', fill = NA, size = 3))
 
-ggplot(df.cors, aes(x = dp, y = actual)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Delta-P and Power-PC's predictions", y = "Actual ratings")
+# Graph differences
 
-ggplot(df.cors, aes(x = hh, y = actual)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Halpern & Hitchcock's predictions", y = "Actual ratings")
+df.graph.diff = df.graph %>% mutate(rating.ours = rating.mean - our_model(focal_high / 10, alt_high / 10),
+                                    rating.ours.normed = rating.mean - normed(focal_high / 10, alt_high / 10, our_model))
+wireframe(rating.ours.normed ~ alt_high * focal_high, data = df.graph.diff, colorkey = TRUE, drape = TRUE,  screen=list(z=120, x=-60, y=0),
+          xlab = list("Prob. of blue \n(alternative)", cex = 1.3), ylab = list("Prob. of green\n(focal)", cex = 1.3),
+          zlab = list("How causal\nwas green?", cex = 1.3))
 
-ggplot(df.cors, aes(x = icard, y = actual)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  scale_x_continuous(breaks = c(0, 1)) + 
-  scale_y_continuous(breaks = c(.3, .8)) + 
-  labs(x = "Icard et al.'s predictions", y = "Actual ratings")
+
+# RT ----------------------------------------------------------------------
+
+df.rt = data %>% filter(rt < 120000) %>% mutate(rt.log = log(rt), rt.sec = rt / 1000)
+df.rt = df.rt %>% filter(rt.sec < 20)
+hist(df.rt$rt.sec)
 
 # Save for model fitting --------------------------------------------------
-write.table(data %>% mutate(rating = (rating + 1) / 10) %>%
-              select(rating, focal_high, alt_high, subject) %>% 
-              mutate(subject = as.numeric(subject)) %>%
-              arrange(subject), 'ratings.csv', row.names = F, sep = ",", col.names = F)
+df.fitting = data %>% mutate(rating = (rating + 1) / 10) %>%
+  select(rating, focal_high, alt_high, subject) %>% 
+  mutate(subject = as.numeric(subject)) %>%
+  arrange(subject)
+df.test = df.fitting %>% group_by(subject) %>% summarize(n = length(unique(rating)))
+write.table(df.fitting, 'ratings.csv', row.names = F, sep = ",", col.names = F)

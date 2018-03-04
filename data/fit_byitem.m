@@ -2,11 +2,11 @@
 
 data = csvread('ratings.csv');
 models = {'ours', 'sp', 'dp', 'icard', 'hh'};
-norm = 1;
+norm = 0;
 
-priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
+%priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
 
-bounds_full = [0 0 0 0; 10 2 1 1];
+bounds_full = [0 0 0 0 0; 1 10 2 1 1];
 numStarts = 10;
 
 %% Fit
@@ -15,10 +15,16 @@ lme_bms = zeros(length(models), 1);
 parfor modelind = 1:length(models)
     model = models(modelind);
     
-    params = 1:2;
-    if strcmp(model, 'hh'), params = 2:4; end
-    bounds = bounds_full(:,params);
+    params = 1:3;
+    A = []; b = [];
+    
+    if strcmp(model, 'hh')
+        params = 3:5;
+        A = [0 1 -1];
+        b = 0;
+    end
 
+    bounds = bounds_full(:,params);
     numParams = length(params);
     starts = zeros(numStarts, numParams);
     for i = 1:numParams
@@ -44,18 +50,18 @@ parfor modelind = 1:length(models)
     post = -logposts_starts(bestStart);
     optParams = params_starts(bestStart, :);
 
-    [~, ~, ~, ~, ~, hessian] = fminunc(f, optParams, options_unc);
-    lme_bms(modelind) = numParams / 2 * log(2*pi) + post - .5 * log(det(hessian));
+    %[~, ~, ~, ~, ~, hessian] = fminunc(f, optParams, options_unc);
+    %lme_bms(modelind) = numParams / 2 * log(2*pi) + post - .5 * log(det(hessian));
 
     %if isnan(lme(xind,aind,modelind)) || isinf(lme(xind,aind,modelind)) || ~isreal(lme(xind,aind,modelind))
     %[~, ll] = posterior_byitem(optParams, data, model);
-    %lme(:,:,modelind) = -0.5 * (numParams * (log(size(data,1)) - log(2*pi)) - 2 * ll);
+    lme_bms(modelind) = -0.5 * (numParams * (log(100) - log(2*pi)) - 2 * post);
     %end
 
     %lme_bms(:,modelind) = reshape(lme(:,:,modelind), 100, 1);
 end
 
-fits_normed = lme_bms;
+%fits_normed = lme_bms;
 
 %% Run BMS
 %[~, modelprobs, ~, pxp, ~] = bms(lme_bms);

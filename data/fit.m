@@ -6,8 +6,8 @@ norm = 1;
 
 %priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
 
-bounds_full = [0 0 0 0; 10 2 1 1];
-numStarts = 5;
+bounds_full = [0 0 0 0 0; 1 10 2 1 1];
+numStarts = 10;
 numSubjects = length(unique(data(:,4)));
 
 %% Fit
@@ -15,8 +15,8 @@ lme_bms = zeros(length(models), 1);
 for modelind = 1:length(models)
     model = models(modelind);
     
-    params = 1:2;
-    if strcmp(model, 'hh'), params = 2:4; end
+    params = 1:3;
+    if strcmp(model, 'hh'), params = 3:5; end
     bounds = bounds_full(:,params);
     numParams = length(params);
     
@@ -53,4 +53,4 @@ for modelind = 1:length(models)
     %end
 end
 
-fits_normed = lme_bms;
+%fits_normed = lme_bms;
