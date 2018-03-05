@@ -37,7 +37,7 @@ opt_params = zeros(numSubjects,numParams,numModels);
 opt_params_group = zeros(numParams, 2, numModels); % mean var
 results = zeros(numSubjects, 4, numModels); % lp ll bic lme
 tol = 1e-3;
-maxiter = 40;
+maxiter = 50;
 options = optimoptions(@fmincon, 'Display', 'off', 'UseParallel', false);
 
 for modelind = 1:numModels
@@ -136,6 +136,6 @@ for modelind = 1:numModels
 end
 
 %% Run BMS
-[~, modelprobs, ~, pxp, ~] = bms(lme_bms(:,2:end));
-modelprobs
-pxp
+%[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
+%modelprobs
+%pxp
