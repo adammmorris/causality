@@ -135,6 +135,8 @@ for modelind = 1:numModels
     end
 end
 
+save('subjfits_hierarchical.mat', 'results', 'lme_bms', 'opt_params', 'opt_params_group');
+
 %% Run BMS
 %[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
 %modelprobs
