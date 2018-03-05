@@ -8,27 +8,17 @@ exclude = [5   6   7  10  11  17  18  20  23  25  38  46  48  53  56  62  73  76
 663 664 682 683 687 689 694 695 703 712 715 722 723 724 726 730 737 738 739 741 742 748 761 778 784 786 793 799 809 812 817 819 822 830 ...
 834 839 855 860 862 863 864 865 869 886 889 892 894 896 899 902 907 914 926 941 943 947 953 964 967 974 976 977 980 981 984 988 999];
 
-model_names = {'ours', 'ours_normed', 'sp', 'dp', 'icard', 'hh'};
-models = {@(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x), @(x,a) a, @(x,a) 1 - x.*(1-a), @(x) 0};
+model_names = {'ours', 'ours_normed', 'sp', 'dp', 'icard', 'icard_normed', 'hh'};
+models = {@(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x), @(x,a) a, @(x,a) 1 - x.*(1-a), @(x,a) 1-x.*(1-a), @(x) 0};
 
 norm = 0;
 
-%priors = {@(x) 1/2, @(x) normpdf(x, 0, .25), @(x) 1, @(x) 1};
-
-bounds_full = [0 0 0 0 0; 1 10 1 1 1];
+bounds_full = [0 0.1 0 0 0; 1 10 1 1 1];
 numStarts = 10;
 numSubjects_total = length(unique(data(:,4)));
 numModels = length(model_names);
-%numModels = 1;
 
 subjects = 1:numSubjects_total;
-include = true(numSubjects_total, 1);
-for i = 1:numSubjects_total
-    %if any(exclude == i)
-    %    include(i) = false;
-    %end
-end
-subjects = subjects(include);
 numSubjects = length(subjects);
 
 %% Fit
@@ -138,6 +128,6 @@ end
 save('subjfits_hierarchical.mat', 'results', 'lme_bms', 'opt_params', 'opt_params_group');
 
 %% Run BMS
-%[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
-%modelprobs
-%pxp
+[~, modelprobs, ~, pxp, ~] = bms(lme_bms);
+modelprobs
+pxp

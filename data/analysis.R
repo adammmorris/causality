@@ -59,13 +59,20 @@ hh = function(x,a) {ifelse(x > .5, 0, ifelse(x < a, 1, 1/2))} # model from Halpe
 sp = function(x,a) {a*(1-x)} # model from Spellman
 dp = function(x,a) {a} # delta-P model (and Power-PC model)
 
+
+ps = seq(0,1,.01)
+beta = .61
+w = function(ps, beta) {(ps ^ beta) / ((ps ^ beta + (1 - ps) ^ beta) ^ (1/beta))}
+plot(ps,w(ps,beta))
+abline(0,1)
+
 df.cors = data.frame(x = numeric(), a = numeric(), actual = numeric(), ours = numeric(), sp = numeric(), dp = numeric(), hh = numeric(), icard = numeric(),
                      ours_normed = numeric(), sp_normed = numeric(), dp_normed = numeric(), hh_normed = numeric(), icard_normed = numeric())
 df.modeling = matrix(0,10,10)
 for (px in 1:10) {
   for (pa in 1:10) {
-        x = px/10
-        a = pa/10
+        x = w(px/10,beta)
+        a = w(pa/10,beta)
         actual = df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa]
         df.cors = rbind(df.cors, data.frame(x = px, a = pa, actual = actual, 
                                             ours = our_model(x,a), sp = sp(x,a), dp = dp(x,a), hh = hh(x,a), icard = icard(x,a),
@@ -205,13 +212,9 @@ ggplot(df.cors, aes(x = sp_normed, y = actual)) +
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.border = element_rect(color = 'black', fill = NA, size = 3))
 
-# Graph differences
-
-df.graph.diff = df.graph %>% mutate(rating.ours = rating.mean - our_model(focal_high / 10, alt_high / 10),
-                                    rating.ours.normed = rating.mean - normed(focal_high / 10, alt_high / 10, our_model))
-wireframe(rating.ours.normed ~ alt_high * focal_high, data = df.graph.diff, colorkey = TRUE, drape = TRUE,  screen=list(z=120, x=-60, y=0),
-          xlab = list("Prob. of blue \n(alternative)", cex = 1.3), ylab = list("Prob. of green\n(focal)", cex = 1.3),
-          zlab = list("How causal\nwas green?", cex = 1.3))
+wireframe(sp_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
 
 
 # RT ----------------------------------------------------------------------

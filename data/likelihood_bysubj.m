@@ -14,19 +14,21 @@ else
     model = model{1};
 end
 
-if strcmp(model, 'ours_normed')
+if strcmp(model, 'ours_normed') || strcmp(model, 'icard_normed')
     norm = 1;
+    temp = scale;
+    scale = 1;
 end
 
 x = ratings(:, 2) / 10;
 a = ratings(:, 3) / 10;
 rating = ratings(:, 1);
-normed = @(x,a,f) exp(f(x,a)) ./ (exp(f(x,a)) + exp(f(a,x)));
+normed = @(x,a,f,temp) exp(temp.*f(x,a)) ./ (exp(temp.*f(x,a)) + exp(temp.*f(a,x)));
 
 if ~norm
     prediction = model(x,a);
 else
-    prediction = normed(x,a,model);
+    prediction = normed(x,a,model,temp);
 end
 
 prediction(isnan(prediction)) = 1/2;
