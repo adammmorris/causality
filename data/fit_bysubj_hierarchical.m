@@ -1,13 +1,6 @@
 %% Set up
 
 data = csvread('ratings.csv');
-exclude = [5   6   7  10  11  17  18  20  23  25  38  46  48  53  56  62  73  76  81  84  86  88 103 106 111 114 121 122 130 131 134 136 141 144 ...
-148 153 162 163 180 181 188 189 192 200 206 212 216 219 220 223 224 226 231 238 245 249 254 257 258 259 265 266 268 271 277 278 284 287 ...
-290 292 306 308 311 313 314 315 316 317 324 338 347 354 361 362 372 373 382 386 387 389 398 402 413 418 422 428 433 436 448 455 456 459 ...
-462 483 488 502 515 519 531 535 543 544 561 563 565 578 580 584 592 593 603 605 617 618 623 633 635 637 642 644 648 649 650 656 659 660 ...
-663 664 682 683 687 689 694 695 703 712 715 722 723 724 726 730 737 738 739 741 742 748 761 778 784 786 793 799 809 812 817 819 822 830 ...
-834 839 855 860 862 863 864 865 869 886 889 892 894 896 899 902 907 914 926 941 943 947 953 964 967 974 976 977 980 981 984 988 999];
-
 model_names = {'ours', 'ours_normed', 'sp', 'dp', 'icard', 'icard_normed', 'hh'};
 models = {@(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x) ./ (1-x.*a), @(x,a) a.*(1-x), @(x,a) a, @(x,a) 1 - x.*(1-a), @(x,a) 1-x.*(1-a), @(x) 0};
 
@@ -22,12 +15,13 @@ subjects = 1:numSubjects_total;
 numSubjects = length(subjects);
 
 %% Fit
+numParams = 3;
 lme_bms = zeros(numSubjects, numModels);
 opt_params = zeros(numSubjects,numParams,numModels);
 opt_params_group = zeros(numParams, 2, numModels); % mean var
 results = zeros(numSubjects, 4, numModels); % lp ll bic lme
 tol = 1e-3;
-maxiter = 50;
+maxiter = 100;
 options = optimoptions(@fmincon, 'Display', 'off', 'UseParallel', false);
 
 for modelind = 1:numModels
