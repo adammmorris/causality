@@ -31,9 +31,9 @@ for (i in 1:10) {
   }
 }
 
-wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = T, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
 
 
 # Test for linear effects -------------------------------------------------
@@ -60,19 +60,13 @@ sp = function(x,a) {a*(1-x)} # model from Spellman
 dp = function(x,a) {a} # delta-P model (and Power-PC model)
 
 
-ps = seq(0,1,.01)
-beta = .61
-w = function(ps, beta) {(ps ^ beta) / ((ps ^ beta + (1 - ps) ^ beta) ^ (1/beta))}
-plot(ps,w(ps,beta))
-abline(0,1)
-
 df.cors = data.frame(x = numeric(), a = numeric(), actual = numeric(), ours = numeric(), sp = numeric(), dp = numeric(), hh = numeric(), icard = numeric(),
                      ours_normed = numeric(), sp_normed = numeric(), dp_normed = numeric(), hh_normed = numeric(), icard_normed = numeric())
 df.modeling = matrix(0,10,10)
 for (px in 1:10) {
   for (pa in 1:10) {
-        x = w(px/10,beta)
-        a = w(pa/10,beta)
+        x = px/10
+        a = pa/10
         actual = df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa]
         df.cors = rbind(df.cors, data.frame(x = px, a = pa, actual = actual, 
                                             ours = our_model(x,a), sp = sp(x,a), dp = dp(x,a), hh = hh(x,a), icard = icard(x,a),
@@ -189,7 +183,7 @@ wireframe(icard ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=lis
 # normed
 wireframe(ours_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
 
 ggplot(df.cors, aes(x = ours_normed, y = actual)) +
   geom_point(size = 3) +
@@ -214,7 +208,7 @@ ggplot(df.cors, aes(x = sp_normed, y = actual)) +
 
 wireframe(sp_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
 
 
 # RT ----------------------------------------------------------------------
