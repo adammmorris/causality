@@ -20,29 +20,29 @@ data = read.csv('data.csv') %>% arrange(subject) %>% filter(rating > -1) %>% mut
 numsubj = length(unique(data$subject))
 numobs = nrow(data)
 
-# Make 3D graph -----------------------------------------------------------
+# Make graph of actual data-----------------------------------------------------------
 
 
-df.graph = data %>% group_by(focal_high, alt_high) %>% summarise(rating.mean = mean(rating), rating.se = se(rating))
+df.graph = data %>% group_by(green_prob, blue_prob) %>% summarise(rating.mean = mean(rating), rating.se = se(rating))
 mat.graph = matrix(0, nrow = 10, ncol = 10)
 for (i in 1:10) {
   for (j in 1:10) {
-    mat.graph[i,j] = df.graph$rating.mean[df.graph$focal_high == i & df.graph$alt_high == j]
+    mat.graph[i,j] = df.graph$rating.mean[df.graph$green_prob == i & df.graph$blue_prob == j]
   }
 }
 
-wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+wireframe(rating.mean ~ blue_prob * green_prob, data = df.graph, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
           scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
  
 df.graph.2d = data %>% 
-  group_by(focal_high, alt_high) %>% 
+  group_by(green_prob, blue_prob) %>% 
   summarise(rating.mean = mean(rating), 
             rating.se = se(rating)) %>% 
   ungroup() %>% 
-  mutate_at(vars(focal_high,alt_high),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
+  mutate_at(vars(green_prob,blue_prob),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
 
-ggplot(df.graph.2d,aes(x = focal_high, y = rating.mean, group = alt_high, color = alt_high))+
+ggplot(df.graph.2d,aes(x = green_prob, y = rating.mean, group = blue_prob, color = blue_prob))+
   geom_errorbar(aes(ymin = rating.mean-rating.se,ymax = rating.mean+rating.se),width=0,size=0.5)+
   geom_line(size=3)+
   geom_point(size=4)+
@@ -65,11 +65,11 @@ ggplot(df.graph.2d,aes(x = focal_high, y = rating.mean, group = alt_high, color 
 # Test for linear effects -------------------------------------------------
 
 
-linear.model = lmer(rating ~ focal_high + alt_high + (1 + focal_high + alt_high | subject), data = data)
+linear.model = lmer(rating ~ green_prob + blue_prob + (1 + green_prob + blue_prob | subject), data = data)
 summary(linear.model)
 
 
-linear.model2 = lm(rating ~ focal_high, data = data %>% filter(alt_high == 1))
+linear.model2 = lm(rating ~ green_prob, data = data %>% filter(blue_prob == 1))
 summary(linear.model2)
 
 
@@ -93,7 +93,7 @@ for (px in 1:10) {
   for (pa in 1:10) {
         x = px/10
         a = pa/10
-        actual = df.graph$rating.mean[df.graph$focal_high == px & df.graph$alt_high == pa]
+        actual = df.graph$rating.mean[df.graph$green_prob == px & df.graph$blue_prob == pa]
         df.cors = rbind(df.cors, data.frame(x = px, a = pa, actual = actual, 
                                             ours = our_model(x,a), sp = sp(x,a), dp = dp(x,a), hh = hh(x,a), icard = icard(x,a),
                                             ours_normed = normed(x,a,our_model), sp_normed = normed(x,a,sp), dp_normed = normed(x,a,dp),
@@ -222,7 +222,7 @@ hist(df.rt$rt.sec)
 
 # Save for model fitting --------------------------------------------------
 df.fitting = data %>% mutate(rating = (rating + 1) / 10) %>%
-  select(rating, focal_high, alt_high, subject) %>% 
+  select(rating, green_prob, blue_prob, subject) %>% 
   mutate(subject = as.numeric(subject)) %>%
   arrange(subject)
 df.test = df.fitting %>% group_by(subject) %>% summarize(n = length(unique(rating)))
