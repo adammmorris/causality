@@ -12,9 +12,9 @@ dodge <- position_dodge(width=0.9)
 
 # Import data -----------------------------------------------------------
 
-setwd('/Users/adam/Me/Psychology/Projects/causality/git/data')
-path = ''
-data = read.csv(paste0(path, 'data.csv')) %>% arrange(subject) %>% filter(rating > -1) %>% mutate(rating = rating / 8)
+# only works in Rstudio -- otherwise you have to set the path manually!
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+data = read.csv('data.csv') %>% arrange(subject) %>% filter(rating > -1) %>% mutate(rating = rating / 8)
 
 # how many subjects are there?
 numsubj = length(unique(data$subject))
@@ -34,6 +34,32 @@ for (i in 1:10) {
 wireframe(rating.mean ~ alt_high * focal_high, data = df.graph, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
           scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
+ 
+df.graph.2d = data %>% 
+  group_by(focal_high, alt_high) %>% 
+  summarise(rating.mean = mean(rating), 
+            rating.se = se(rating)) %>% 
+  ungroup() %>% 
+  mutate_at(vars(focal_high,alt_high),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
+
+ggplot(df.graph.2d,aes(x = focal_high, y = rating.mean, group = alt_high, color = alt_high))+
+  geom_errorbar(aes(ymin = rating.mean-rating.se,ymax = rating.mean+rating.se),width=0,size=0.5)+
+  geom_line(size=3)+
+  geom_point(size=4)+
+  labs(x = '',
+       color = '',
+       y = '')+
+  scale_color_grey(start = 0.85, end = 0)+
+  theme_bw()+
+  theme(text = element_text(size = 26,color='black'),
+        panel.grid = element_blank(),
+        legend.position = 'none',
+        legend.direction = 'horizontal'
+  )+
+  #guides(col = guide_legend(nrow = 2, direction = 'vertical', byrow=T)) +
+  ylim(0, .8)+
+  scale_y_continuous(breaks = c()) +
+  scale_x_discrete(breaks = c())
 
 
 # Test for linear effects -------------------------------------------------
@@ -86,6 +112,7 @@ cor.test(df.cors$actual, df.cors$dp_normed) # .8
 cor.test(df.cors$actual, df.cors$hh) # .45
 cor.test(df.cors$actual, df.cors$hh_normed) # .6
 cor.test(df.cors$actual, df.cors$icard) # .74
+cor.test(df.cors$actual, df.cors$icard_restricted) # .74
 cor.test(df.cors$actual, df.cors$icard_normed) # .8
 
 # is our model significantly more correlated than the next-best?
@@ -102,7 +129,9 @@ r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours, use = "complete.obs"),
        r13 = cor(df.cors$actual, df.cors$ours_normed, use = "complete.obs"), 
        r23 = cor(df.cors$ours, df.cors$ours_normed, use = "complete.obs"))
 
-# scatterplots
+
+# Graph results -----------------------------------------------------------
+
 theme_update(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
              panel.background = element_rect(colour = "black"),
              axis.text=element_text(size=20, colour = "black"), axis.title=element_text(size=24, face = "bold"),
@@ -110,106 +139,80 @@ theme_update(panel.grid.major = element_blank(), panel.grid.minor = element_blan
              legend.title = element_text(size = 24, face = "bold"), legend.text = element_text(size = 20),
              plot.title = element_text(size = 26, face = "bold", vjust = 1))
 
-ggplot(df.cors, aes(x = ours, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-                               panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                               panel.border = element_rect(color = 'black', fill = NA, size = 3))
+df.cors.2d = df.cors %>% mutate_at(vars(x,a),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
 
-wireframe(ours ~ a * x, data = df.cors, colorkey = T, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+splot = function(aesthetic) {
+  ggplot(df.cors, aesthetic) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm") +
+    xlim(0,1) + 
+    ylim(0,1) +
+    labs(x = "", y = "") +
+    theme(axis.text = element_blank(), axis.ticks = element_blank(),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.border = element_rect(color = 'black', fill = NA, size = 3))
+}
 
-ggplot(df.cors, aes(x = sp, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+threedplot = function(formula, ckey) {
+  wireframe(formula, data = df.cors, colorkey = ckey, drape = TRUE,  screen=list(z=120, x=-70, y=0),
+            xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
+            scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+}
 
-wireframe(sp ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+twodplot = function(aesthetic, normed) {
+  ggplot(df.cors.2d,aesthetic)+
+    geom_line(size=3)+
+    geom_point(size=4)+
+    labs(x = '',
+         color = '',
+         y = '')+
+    scale_color_grey(start = 0.85, end = 0)+
+    theme_bw()+
+    theme(text = element_text(size = 26,color='black'),
+          panel.grid = element_blank(),
+          legend.position = 'none',
+          legend.direction = 'horizontal'
+    )+
+    #guides(col = guide_legend(nrow = 2, direction = 'vertical', byrow=T)) +
+    ylim(ifelse(normed, .2, 0), ifelse(normed, .8, 1))+
+    scale_y_continuous(breaks = c()) +
+    scale_x_discrete(breaks = c())
+}
 
-ggplot(df.cors, aes(x = dp, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+# AFI model, unnormed
+splot(aes(x=ours,y=actual))
+threedplot(ours ~ a * x, T)
+twodplot(aes(x = x, y = ours, group = a, color = a), F)
 
-wireframe(dp ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+# AFI model, normed
+splot(aes(x=ours_normed,y=actual))
+threedplot(ours_normed ~ a * x, T)
+twodplot(aes(x = x, y = ours_normed, group = a, color = a), T)
 
-ggplot(df.cors, aes(x = hh, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+# sp
+splot(aes(x=sp,y=actual))
+threedplot(sp ~ a * x, F)
+twodplot(aes(x = x, y = sp, group = a, color = a), F)
 
-wireframe(hh ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+# dp / power-pc
+splot(aes(x=dp,y=actual))
+threedplot(dp ~ a * x, F)
+twodplot(aes(x = x, y = dp, group = a, color = a), F)
 
-ggplot(df.cors, aes(x = icard, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
+# halpern & hitchcock
+splot(aes(x=hh,y=actual))
+threedplot(hh ~ a * x, F)
+twodplot(aes(x = x, y = hh, group = a, color = a), F)
 
-wireframe(icard ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(0, 1))
+# icard
+splot(aes(x=icard,y=actual))
+threedplot(icard ~ a * x, F)
+twodplot(aes(x = x, y = icard, group = a, color = a), F)
 
-# normed
-wireframe(ours_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
-
-ggplot(df.cors, aes(x = ours_normed, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
-
-
-ggplot(df.cors, aes(x = sp_normed, y = actual)) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm") +
-  xlim(0,1) + 
-  ylim(0,1) +
-  labs(x = "", y = "") +
-  theme(axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = 'black', fill = NA, size = 3))
-
-wireframe(sp_normed ~ a * x, data = df.cors, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
-          xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
-          scales = list(col = 1, relation = 'free', lwd = 3), zlim = c(.2, .8))
-
+# others, normed
+splot(aes(x=sp_normed,y=actual))
+threedplot(sp_normed ~ a * x, F)
+twodplot(aes(x = x, y = sp_normed, group = a, color = a), T)
 
 # RT ----------------------------------------------------------------------
 
