@@ -20,16 +20,10 @@ data = read.csv('data.csv') %>% arrange(subject) %>% filter(rating > -1) %>% mut
 numsubj = length(unique(data$subject))
 numobs = nrow(data)
 
-# Make graph of actual data-----------------------------------------------------------
+# Make graph of empirical results -----------------------------------------------------------
 
 
 df.graph = data %>% group_by(green_prob, blue_prob) %>% summarise(rating.mean = mean(rating), rating.se = se(rating))
-mat.graph = matrix(0, nrow = 10, ncol = 10)
-for (i in 1:10) {
-  for (j in 1:10) {
-    mat.graph[i,j] = df.graph$rating.mean[df.graph$green_prob == i & df.graph$blue_prob == j]
-  }
-}
 
 wireframe(rating.mean ~ blue_prob * green_prob, data = df.graph, colorkey = F, drape = TRUE,  screen=list(z=120, x=-70, y=0),
           xlab = list(""), ylab = list(""), zlab = list(""), par.settings = list(axis.line = list(col = NA)),
@@ -116,7 +110,6 @@ cor.test(df.cors$actual, df.cors$icard_restricted) # .74
 cor.test(df.cors$actual, df.cors$icard_normed) # .8
 
 # is our model significantly more correlated than the next-best?
-# yes: t(99) = 3.91, p < .0002
 r.test(n=100, r12 = cor(df.cors$actual, df.cors$ours, use = "complete.obs"), 
        r13 = cor(df.cors$actual, df.cors$sp_normed, use = "complete.obs"), 
        r23 = cor(df.cors$ours, df.cors$sp_normed, use = "complete.obs"))
@@ -150,7 +143,7 @@ splot = function(aesthetic) {
     labs(x = "", y = "") +
     theme(axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-          panel.border = element_rect(color = 'black', fill = NA, size = 3))
+          panel.border = element_blank(), axis.line = element_line(colour = "black", size = 1),panel.background = element_blank())
 }
 
 threedplot = function(formula, ckey) {
@@ -213,17 +206,3 @@ twodplot(aes(x = x, y = icard, group = a, color = a), F)
 splot(aes(x=sp_normed,y=actual))
 threedplot(sp_normed ~ a * x, F)
 twodplot(aes(x = x, y = sp_normed, group = a, color = a), T)
-
-# RT ----------------------------------------------------------------------
-
-df.rt = data %>% filter(rt < 120000) %>% mutate(rt.log = log(rt), rt.sec = rt / 1000)
-df.rt = df.rt %>% filter(rt.sec < 20)
-hist(df.rt$rt.sec)
-
-# Save for model fitting --------------------------------------------------
-df.fitting = data %>% mutate(rating = (rating + 1) / 10) %>%
-  select(rating, green_prob, blue_prob, subject) %>% 
-  mutate(subject = as.numeric(subject)) %>%
-  arrange(subject)
-df.test = df.fitting %>% group_by(subject) %>% summarize(n = length(unique(rating)))
-write.table(df.fitting, 'ratings.csv', row.names = F, sep = ",", col.names = F)
