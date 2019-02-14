@@ -1,2 +1,2 @@
-# causality
-This repository contains the data and analysis code for "Quantitative causal selection patterns in token causation", by Adam Morris, Jonathan Phillips, Tobias Gerstenberg, and Fiery Cushman.
+# Quantitative causal selection patterns in token causation
+This repository contains the data and analysis code for "Quantitative causal selection patterns in token causation", by Adam Morris, Jonathan Phillips, Tobias Gerstenberg, and Fiery Cushman. "data_con.csv" and "analysis_con.R" are the data and analysis code for Experiment 1; "data_dis.csv" and "analysis_dis.R" are the data and analysis code for Experiment 2.
