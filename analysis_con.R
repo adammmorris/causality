@@ -15,11 +15,14 @@ dodge <- position_dodge(width=0.9)
 
 # only works in Rstudio -- otherwise you have to set the path manually!
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-data = read.csv('data_con.csv') %>% arrange(subject) %>% filter(rating > -1) %>% mutate(rating = rating / 8)
+data = read.csv('data_con.csv') %>% arrange(subject) %>% filter(rating > -1) %>%
+  mutate(rating = rating / 8, half = factor(trial_ind > 1, c(F, T), c('First', 'Second')))
 
 # how many subjects are there?
 numsubj = length(unique(data$subject))
 numobs = nrow(data)
+
+mean(data$rating >= .4 & data$rating <= .6)
 
 # Make graph of empirical results -----------------------------------------------------------
 
@@ -31,6 +34,8 @@ df.graph.2d = data %>%
             rating.se = se(rating)) %>% 
   ungroup() %>% 
   mutate_at(vars(green_prob,blue_prob),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
+
+mean(df.graph.2d$rating.mean >= .4 & df.graph.2d$rating.mean <= .6)
 
 ggplot(df.graph.2d,aes(x = green_prob, y = rating.mean, group = blue_prob, color = blue_prob))+
   geom_errorbar(aes(ymin = rating.mean-rating.se,ymax = rating.mean+rating.se),width=0,size=0.5)+
@@ -46,13 +51,13 @@ ggplot(df.graph.2d,aes(x = green_prob, y = rating.mean, group = blue_prob, color
         legend.position = 'none',
         legend.direction = 'horizontal'
   )+
-  scale_y_continuous(breaks = c()) +
+  scale_y_continuous(breaks = c(), limits = c(0,1)) +
   scale_x_discrete(breaks = c())
 
 # graph each dimension separately
 
 df.graph.2d.green = data %>% 
-  group_by(green_prob) %>% 
+  group_by(green_prob, half) %>% 
   summarise(rating.mean = mean(rating), 
             rating.se = se(rating)) %>% 
   ungroup() %>% 
@@ -63,7 +68,8 @@ ggplot(df.graph.2d.green,aes(x = green_prob, y = rating.mean))+
   geom_point(size=4) +
   ylab('') + xlab('') +
   scale_y_continuous(breaks = c()) +
-  scale_x_discrete(breaks = c())
+  scale_x_discrete(breaks = c()) +
+  facet_wrap(~half)
 
 df.graph.2d.blue = data %>% 
   group_by(blue_prob) %>% 
@@ -77,6 +83,39 @@ ggplot(df.graph.2d.blue,aes(x = blue_prob, y = rating.mean))+
   geom_point(size=4) +
   ylab('') + xlab('') +
   scale_y_continuous(breaks = c()) +
+  scale_x_discrete(breaks = c())
+
+# check for order effects
+
+
+df.graph.2d.green = data %>%
+  group_by(green_prob, half) %>% 
+  summarise(rating.mean = mean(rating), 
+            rating.se = se(rating)) %>% 
+  ungroup() %>% 
+  mutate_at(vars(green_prob),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
+
+ggplot(df.graph.2d.green %>% filter(half == 'Second') %>% mutate(green_prob = as.numeric(green_prob)),aes(x = green_prob, y = rating.mean))+
+  geom_errorbar(aes(ymin = rating.mean-rating.se,ymax = rating.mean+rating.se),width=0,size=0.5)+
+  geom_point(size=4) +
+  geom_smooth(method='lm') +
+  ylab('') + xlab('') +
+  scale_y_continuous(breaks = c(), labels = c(), limits = c(.2, .65)) +
+  scale_x_discrete(breaks = c())
+
+df.graph.2d.blue = data %>% 
+  group_by(blue_prob, half) %>% 
+  summarise(rating.mean = mean(rating), 
+            rating.se = se(rating)) %>% 
+  ungroup() %>% 
+  mutate_at(vars(blue_prob),funs(factor(.,labels = paste0(seq(10,100,10),"%"))))
+
+ggplot(df.graph.2d.blue %>% filter(half == 'Second') %>% mutate(blue_prob = as.numeric(blue_prob)),aes(x = blue_prob, y = rating.mean))+
+  geom_errorbar(aes(ymin = rating.mean-rating.se,ymax = rating.mean+rating.se),width=0,size=0.5)+
+  geom_point(size=4) +
+  ylab('') + xlab('') +
+  geom_smooth(method='lm') +
+  scale_y_continuous(breaks = c(), labels = c(), limits = c(.25, .8)) +
   scale_x_discrete(breaks = c())
 
 # split by certainty
@@ -119,7 +158,14 @@ ggplot(df.graph.2d.blue2,aes(x = blue_prob, y = rating.mean, color = green_prob_
 # Test for statistical effects -------------------------------------------------
 
 
-linear.model = lmer(rating ~ green_prob + blue_prob + (1 + green_prob + blue_prob | subject), data = data)
+linear.model = lmer(rating ~ green_prob + blue_prob + (green_prob + blue_prob | subject), data = data)
+summary(linear.model)
+
+# check for order effects in basic patterns
+linear.model = lmer(rating ~ green_prob * trial_ind + blue_prob * trial_ind + (green_prob + blue_prob + trial_ind | subject), data = data)
+summary(linear.model)
+
+linear.model = lm(rating ~ green_prob + blue_prob, data = data %>% filter(trial_ind == 0))
 summary(linear.model)
 
 # testing nonlinear pattern in abnormal inflation
